@@ -1,0 +1,537 @@
+﻿/* Yet Another Forum.NET
+ * Copyright (C) 2003-2005 Bjørnar Henden
+ * Copyright (C) 2006-2013 Jaben Cargman
+ * Copyright (C) 2014-2022 Ingo Herbote
+ * http://www.yetanotherforum.net/
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+namespace YAF.LanguageManager;
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+
+using DeepL;
+
+using Newtonsoft.Json;
+
+using YAF.LanguageManager.GoogleTranslate;
+using YAF.LanguageManager.Utils;
+
+using Formatting = Newtonsoft.Json.Formatting;
+
+internal class Program
+{
+    private static async Task Main(string[] args)
+    {
+        //Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "c:\\Users\\iherb\\yafnet-translation.json");
+        
+        using var debug = new SaveDebug(
+                   Path.GetDirectoryName(typeof(Program).Module.FullyQualifiedName),
+                   "LanguageSync.log");
+        try
+        {
+            var commandLineParameters = new CommandLineParameters(args, false);
+
+            ShowDivider(0);
+
+            Console.WriteLine("YetAnotherForum.NET JSON Language Synchronizer v1.0.0");
+
+            ShowDivider(2);
+
+            if (commandLineParameters["?"] || commandLineParameters["help"]
+                                           || commandLineParameters.TextCount < 1)
+            {
+                Console.WriteLine("Usage: YAF.LanguageManager pathToLanguageFiles\r\n");
+                Console.WriteLine("Options:\r\n");
+                Console.WriteLine("    -sync                                Update and synchronize language files");
+                Console.WriteLine("    -minify                              Minify all language files");
+                Console.WriteLine("    -uglify                              Un-Minify all language files");
+                Console.WriteLine("    -translateDeepL  -apiKey:123456      Automatic translation via DeepL");
+                Console.WriteLine("    -translateGoogle -projectId:123456   Automatic translation via Google");
+                ShowDivider(1);
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(commandLineParameters.TextLines[0]))
+                {
+                    Console.WriteLine("Path to Language files not defined!");
+                    return;
+                }
+
+                var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+
+                var languageFolder = Path.GetFullPath(Path.Combine(currentFolder, commandLineParameters.TextLines[0]));
+
+                var languages = Directory.GetFiles(languageFolder, "*.json").ToList();
+
+                var sourceResource = LoadFile(Path.Combine(languageFolder, "english.json"));
+
+                if (commandLineParameters.Switches.ContainsKey("sync"))
+                {
+                    SyncLanguages(languageFolder, languages);
+                }
+
+                if (commandLineParameters.Switches.ContainsKey("translateDeepL"))
+                {
+                    var apiKey = commandLineParameters.Switches["apiKey"];
+
+                    AutoTranslateWithDeepL(apiKey, languages, sourceResource);
+                }
+
+                if (commandLineParameters.Switches.ContainsKey("translateGoogle"))
+                {
+                    var projectId = commandLineParameters.Switches["projectId"];
+
+                    AutoTranslateWithGoogle(projectId, languages, sourceResource).GetAwaiter().GetResult();
+                }
+
+                if (commandLineParameters.Switches.ContainsKey("minify"))
+                {
+                    MinifyLanguages(languages);
+                }
+
+                if (commandLineParameters.Switches.ContainsKey("uglify"))
+                {
+                    UglifyLanguages(languages);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugHelper.DebugExceptionMessage(ex);
+        }
+    }
+
+    /// <summary>
+    /// Synchronizes languages.
+    /// </summary>
+    /// <param name="languageFolder">The language folder.</param>
+    /// <param name="languages">The languages.</param>
+    private static async void SyncLanguages(string languageFolder, List<string> languages)
+    {
+        DebugHelper.DisplayAndLogMessage(
+                   $"Reading Languages Folder {languageFolder} ...");
+
+        var sourceResources = LoadFile(Path.Combine(languageFolder, "english.json"));
+
+        // Add Missing Resources
+        foreach (var file in languages)
+        {
+            var resourcesFile = LoadFile(file);
+
+            var updateFile = false;
+
+            foreach (var sourcePage in sourceResources.Resources.Page)
+            {
+                foreach (var sourceResource in sourcePage.Resource)
+                {
+                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
+
+                    // Add Missing pages in languages
+                    if (translatePage == null)
+                    {
+                        updateFile = true;
+                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to language file '{file}'.");
+
+                        resourcesFile.Resources.Page.Add(sourcePage);
+                    }
+                    else
+                    {
+                        var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+
+                        if (translateResource != null)
+                        {
+                            continue;
+                        }
+
+                        updateFile = true;
+
+                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourcePage.Name}' to language file '{file}'.");
+
+                        resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name).Resource.Add(sourceResource);
+                    }
+                }
+            }
+
+            if (!updateFile)
+            {
+                continue;
+            }
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, resourcesFile);
+        }
+
+        // Remove legacy Resources
+        foreach (var file in languages)
+        {
+            var updateFile = false;
+
+            var resourcesFile = LoadFile(file);
+
+            if (resourcesFile.Resources.Code == "en")
+            {
+                continue;
+            }
+
+            var deleteResourceFile = LoadFile(file);
+
+            foreach (var resourcePage in resourcesFile.Resources.Page)
+            {
+                var sourcePage = sourceResources.Resources.Page.FirstOrDefault(p => p.Name == resourcePage.Name);
+
+                if (sourcePage == null)
+                {
+                    updateFile = true;
+
+                    DebugHelper.DisplayAndLogMessage($"Removed no longer used Resource Page '{sourcePage.Name}' from language file '{file}'.");
+
+                    deleteResourceFile.Resources.Page.RemoveAll(p => p.Name == resourcePage.Name);
+                }
+                else
+                {
+                    foreach (var resource in resourcePage.Resource.Where(
+                                 resource => sourcePage.Resource.All(res => res.Tag != resource.Tag)))
+                    {
+                        updateFile = true;
+
+                        DebugHelper.DisplayAndLogMessage($"Removed no longer used Resource '{sourcePage.Name}' from language file '{file}'.");
+
+                        deleteResourceFile.Resources.Page.First(p => p.Name == resourcePage.Name).Resource
+                            .RemoveAll(r => r.Tag == resource.Tag);
+                    }
+                }
+            }
+
+            if (!updateFile)
+            {
+                continue;
+            }
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            ShowDivider(0);
+
+            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, deleteResourceFile);
+        }
+
+        DebugHelper.DisplayAndLogMessage("All Languages Synced!");
+    }
+
+    /// <summary>
+    /// Minify all languages.
+    /// </summary>
+    /// <param name="languages">The languages.</param>
+    private static async void MinifyLanguages(IEnumerable<string> languages)
+    {
+        foreach (var file in languages)
+        {
+            var resourcesFile = LoadFile(file);
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            var serializer = new JsonSerializer
+            {
+                Formatting = Formatting.None
+            };
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, resourcesFile);
+        }
+
+        Console.WriteLine("Done!");
+    }
+
+    /// <summary>
+    /// Un-Minify all languages.
+    /// </summary>
+    /// <param name="languages">The languages.</param>
+    private static async void UglifyLanguages(IEnumerable<string> languages)
+    {
+        foreach (var file in languages)
+        {
+            var resourcesFile = LoadFile(file);
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            var serializer = new JsonSerializer
+                                 {
+                                     Formatting = Formatting.Indented
+                                 };
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, resourcesFile);
+        }
+
+        Console.WriteLine("Done!");
+    }
+
+    /// <summary>
+    /// Loads the Resource JSON file.
+    /// </summary>
+    /// <param name="filePath">The file path.</param>
+    /// <returns>ResourcesFile.</returns>
+    private static ResourcesFile LoadFile(string filePath)
+    {
+        using var file = File.OpenText(filePath);
+        using var reader = new JsonTextReader(file);
+        var serializer = new JsonSerializer();
+        var languageResource = serializer.Deserialize<ResourcesFile>(reader);
+
+        // transform the page and tag name ToUpper...
+        languageResource.Resources.Page.ForEach(p => p.Name = p.Name.ToUpper());
+        languageResource.Resources.Page.ForEach(p => p.Resource.ForEach(i => i.Tag = i.Tag.ToUpper()));
+
+        languageResource.Resources.Page = languageResource.Resources.Page.OrderBy(p => p.Name).ToList();
+
+        languageResource.Resources.Page.ForEach(p => p.Resource = p.Resource.OrderBy(r => r.Tag).ToList());
+
+        return languageResource;
+    }
+
+    /// <summary>
+    /// The show divider.
+    /// </summary>
+    /// <param name="showReturn">
+    /// The show return.
+    /// </param>
+    private static void ShowDivider(int showReturn)
+    {
+        if ((showReturn & 1) == 1)
+        {
+            Console.WriteLine("\r\n");
+        }
+
+        Console.WriteLine("-------------------------------------------------------");
+
+        if ((showReturn & 2) != 2)
+        {
+            return;
+        }
+
+        Console.WriteLine("\r\n");
+    }
+
+    /// <summary>Automatic translate languages via DeepL Api.</summary>
+    /// <param name="apiKey">The Api Key</param>
+    /// <param name="languages">The Language Files</param>
+    /// <param name="sourceResources">The source resources.</param>
+    /// <returns>A Task representing the asynchronous operation.</returns>
+    private static async void AutoTranslateWithDeepL(
+        string apiKey,
+        List<string> languages,
+        ResourcesFile sourceResources)
+    {
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            return;
+        }
+
+        var translator = new Translator(apiKey);
+
+        var deepLanguageList = await translator.GetSourceLanguagesAsync();
+
+        foreach (var file in languages)
+        {
+            var resourcesFile = LoadFile(file);
+
+            var updateFile = false;
+
+            if (resourcesFile.Resources.Code == "en")
+            {
+                continue;
+            }
+
+            if (deepLanguageList.All(l => l.Code != resourcesFile.Resources.Code))
+            {
+                continue;
+            }
+
+            foreach (var sourcePage in sourceResources.Resources.Page)
+            {
+                if (sourcePage.Name.Equals("TEMPLATES"))
+                {
+                    continue;
+                }
+
+                foreach (var sourceResource in sourcePage.Resource)
+                {
+                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
+
+                    var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+
+                    if (!string.Equals(
+                            sourceResource.Text,
+                            translateResource.Text,
+                            StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (translateResource.Tag.Equals("COOKIES_TEXT"))
+                    {
+                        continue;
+                    }
+
+                    DebugHelper.DisplayAndLogMessage(
+                        $"Translate Page: '{translatePage.Name}': Tag: '{translateResource.Tag}'");
+
+                    updateFile = true;
+
+                    var translatedText = await translator.TranslateTextAsync(
+                                             sourceResource.Text,
+                                             LanguageCode.English,
+                                             resourcesFile.Resources.Code == "pt"
+                                                 ? LanguageCode.PortugueseEuropean
+                                                 : resourcesFile.Resources.Code);
+
+
+                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = translatedText.Text;
+
+                }
+            }
+
+            if (!updateFile)
+            {
+                continue;
+            }
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            ShowDivider(0);
+
+            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, resourcesFile);
+        }
+    }
+
+    /// <summary>
+    /// Automatic translate languages via google translate Api.
+    /// </summary>
+    /// <param name="languages">The Language Files</param>
+    /// <param name="sourceResources">The source resources.</param>
+    /// <param name="projectId">The google project Id</param>
+    /// <returns>A Task representing the asynchronous operation.</returns>
+    private static async Task AutoTranslateWithGoogle(
+        string projectId,
+        List<string> languages,
+        ResourcesFile sourceResources)
+    {
+        var provider = new TranslateProvider();
+
+        var countTranslations = 0;
+
+        foreach (var file in languages)
+        {
+            var resourcesFile = LoadFile(file);
+
+            var updateFile = false;
+
+            if (resourcesFile.Resources.Code == "en")
+            {
+                continue;
+            }
+
+            foreach (var sourcePage in sourceResources.Resources.Page)
+            {
+                if (sourcePage.Name.Equals("TEMPLATES"))
+                {
+                    continue;
+                }
+
+                foreach (var sourceResource in sourcePage.Resource)
+                {
+                    if (countTranslations == 1000)
+                    {
+                        //break;
+                    }
+
+                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
+
+                    var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+
+                    if (!string.Equals(
+                            sourceResource.Text,
+                            translateResource.Text,
+                            StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    switch (translateResource.Tag)
+                    {
+                        case "COOKIES_TEXT":
+                        case "SELECT_LOCALE_JS":
+                            continue;
+                    }
+
+                    DebugHelper.DisplayAndLogMessage(
+                        $"Translate Page: '{translatePage.Name}': Tag: '{translateResource.Tag}'");
+
+                    updateFile = true;
+
+                    var result = await provider.ExecuteAsync(
+                                     projectId,
+                                     sourceResource.Text,
+                                     sourceResources.Resources.Code,
+                                     resourcesFile.Resources.Code);
+
+                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = result;
+
+                    countTranslations++;
+
+                }
+            }
+
+            if (!updateFile)
+            {
+                continue;
+            }
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            ShowDivider(0);
+
+            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
+
+            await using var sw = new StreamWriter(file);
+            using JsonWriter writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, resourcesFile);
+        }
+    }
+}
