@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32407.343
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LanguageSync", "YAF.LanguageManager\YAF.LanguageManager.csproj", "{F8D1984E-8814-4533-A7C2-4D988DBE64CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YAF.LanguageManager", "YAF.LanguageManager\YAF.LanguageManager.csproj", "{F8D1984E-8814-4533-A7C2-4D988DBE64CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
