@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2022 Ingo Herbote
+ * Copyright (C) 2014-2023 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -42,7 +42,7 @@ using Formatting = Newtonsoft.Json.Formatting;
 
 internal class Program
 {
-    private static async Task Main(string[] args)
+    private static Task Main(string[] args)
     {
         //Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "c:\\Users\\iherb\\yafnet-translation.json");
         
@@ -76,7 +76,7 @@ internal class Program
                 if (string.IsNullOrEmpty(commandLineParameters.TextLines[0]))
                 {
                     Console.WriteLine("Path to Language files not defined!");
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
@@ -103,7 +103,7 @@ internal class Program
                 {
                     var projectId = commandLineParameters.Switches["projectId"];
 
-                    AutoTranslateWithGoogle(projectId, languages, sourceResource).GetAwaiter().GetResult();
+                    AutoTranslateWithGoogleAsync(projectId, languages, sourceResource).GetAwaiter().GetResult();
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("minify"))
@@ -121,6 +121,8 @@ internal class Program
         {
             DebugHelper.DebugExceptionMessage(ex);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -184,7 +186,7 @@ internal class Program
             var serializer = new JsonSerializer {Formatting = Formatting.Indented};
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
 
@@ -241,7 +243,7 @@ internal class Program
             var serializer = new JsonSerializer {Formatting = Formatting.Indented};
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, deleteResourceFile);
         }
 
@@ -266,7 +268,7 @@ internal class Program
             };
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
 
@@ -291,7 +293,7 @@ internal class Program
                                  };
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
 
@@ -417,9 +419,7 @@ internal class Program
                                                  ? LanguageCode.PortugueseEuropean
                                                  : resourcesFile.Resources.Code);
 
-
                     translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = translatedText.Text;
-
                 }
             }
 
@@ -435,7 +435,7 @@ internal class Program
             var serializer = new JsonSerializer {Formatting = Formatting.Indented};
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
     }
@@ -447,7 +447,7 @@ internal class Program
     /// <param name="sourceResources">The source resources.</param>
     /// <param name="projectId">The google project Id</param>
     /// <returns>A Task representing the asynchronous operation.</returns>
-    private static async Task AutoTranslateWithGoogle(
+    private static async Task AutoTranslateWithGoogleAsync(
         string projectId,
         List<string> languages,
         ResourcesFile sourceResources)
@@ -514,7 +514,6 @@ internal class Program
                     translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = result;
 
                     countTranslations++;
-
                 }
             }
 
@@ -530,7 +529,7 @@ internal class Program
             var serializer = new JsonSerializer {Formatting = Formatting.Indented};
 
             await using var sw = new StreamWriter(file);
-            using JsonWriter writer = new JsonTextWriter(sw);
+            await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
     }

@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2022 Ingo Herbote
+ * Copyright (C) 2014-2023 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -69,7 +69,7 @@ internal class ResourceListConverter : JsonConverter
 
     public override bool CanConvert(Type objectType)
     {
-        return objectType.IsGenericType && (objectType.GetGenericTypeDefinition() == typeof(List<>));
+        return objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(List<>);
     }
 }
 
