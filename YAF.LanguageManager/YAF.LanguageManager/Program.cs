@@ -79,9 +79,9 @@ internal class Program
                     return Task.CompletedTask;
                 }
 
-                var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location);
 
-                var languageFolder = Path.GetFullPath(Path.Combine(currentFolder, commandLineParameters.TextLines[0]));
+                var languageFolder = Path.GetFullPath(Path.Combine(currentFolder!, commandLineParameters.TextLines[0]));
 
                 var languages = Directory.GetFiles(languageFolder, "*.json").ToList();
 
@@ -187,7 +187,7 @@ internal class Program
 
             await using var sw = new StreamWriter(file);
             await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, resourcesFile);
+            //serializer.Serialize(writer, resourcesFile);
         }
 
         // Remove legacy Resources
@@ -231,20 +231,18 @@ internal class Program
                 }
             }
 
-            if (!updateFile)
+            if (updateFile)
             {
-                continue;
+                DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+                ShowDivider(0);
+
+                var serializer = new JsonSerializer { Formatting = Formatting.Indented };
+
+                await using var sw = new StreamWriter(file);
+                await using JsonWriter writer = new JsonTextWriter(sw);
+                //serializer.Serialize(writer, deleteResourceFile);
             }
-
-            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
-
-            ShowDivider(0);
-
-            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, deleteResourceFile);
         }
 
         DebugHelper.DisplayAndLogMessage("All Languages Synced!");

@@ -2,7 +2,7 @@
   "profiles": {
     "LanguageCleaner": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\iherb\\source\\repos\\YAFNET\\YAF.NET\\yafsrc\\YetAnotherForum.NET\\languages\\ -i -translateGoogle -projectId:123456 -uglify"
+      "commandLineArgs": "C:\\Users\\iherb\\source\\repos\\YAFNET\\YAF.NET\\yafsrc\\YetAnotherForum.NET\\languages\\ -sync"
     }
   }
 }
