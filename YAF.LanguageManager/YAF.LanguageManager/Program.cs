@@ -137,6 +137,8 @@ internal class Program
 
         var sourceResources = LoadFile(Path.Combine(languageFolder, "english.json"));
 
+        var serializer = new JsonSerializer { Formatting = Formatting.Indented };
+
         // Add Missing Resources
         foreach (var file in languages)
         {
@@ -183,11 +185,9 @@ internal class Program
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
 
-            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            //serializer.Serialize(writer, resourcesFile);
+           var sw = new StreamWriter(file);
+           var writer = new JsonTextWriter(sw);
+           serializer.Serialize(writer, resourcesFile);
         }
 
         // Remove legacy Resources
@@ -212,7 +212,8 @@ internal class Program
                 {
                     updateFile = true;
 
-                    DebugHelper.DisplayAndLogMessage($"Removed no longer used Resource Page '{sourcePage.Name}' from language file '{file}'.");
+                    DebugHelper.DisplayAndLogMessage(
+                        $"Removed no longer used Resource Page '{sourcePage.Name}' from language file '{file}'.");
 
                     deleteResourceFile.Resources.Page.RemoveAll(p => p.Name == resourcePage.Name);
                 }
@@ -223,7 +224,8 @@ internal class Program
                     {
                         updateFile = true;
 
-                        DebugHelper.DisplayAndLogMessage($"Removed no longer used Resource '{sourcePage.Name}' from language file '{file}'.");
+                        DebugHelper.DisplayAndLogMessage(
+                            $"Removed no longer used Resource '{sourcePage.Name}' from language file '{file}'.");
 
                         deleteResourceFile.Resources.Page.First(p => p.Name == resourcePage.Name).Resource
                             .RemoveAll(r => r.Tag == resource.Tag);
@@ -231,18 +233,18 @@ internal class Program
                 }
             }
 
-            if (updateFile)
+            if (!updateFile)
             {
-                DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
-
-                ShowDivider(0);
-
-                var serializer = new JsonSerializer { Formatting = Formatting.Indented };
-
-                await using var sw = new StreamWriter(file);
-                await using JsonWriter writer = new JsonTextWriter(sw);
-                //serializer.Serialize(writer, deleteResourceFile);
+                continue;
             }
+
+            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
+
+            ShowDivider(0);
+
+            var sw = new StreamWriter(file);
+            var writer = new JsonTextWriter(sw);
+            serializer.Serialize(writer, deleteResourceFile);
         }
 
         DebugHelper.DisplayAndLogMessage("All Languages Synced!");
