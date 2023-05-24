@@ -39,10 +39,11 @@ using YAF.LanguageManager.GoogleTranslate;
 using YAF.LanguageManager.Utils;
 
 using Formatting = Newtonsoft.Json.Formatting;
+using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 internal class Program
 {
-    private static Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
         //Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "c:\\Users\\iherb\\yafnet-translation.json");
         
@@ -76,7 +77,7 @@ internal class Program
                 if (string.IsNullOrEmpty(commandLineParameters.TextLines[0]))
                 {
                     Console.WriteLine("Path to Language files not defined!");
-                    return Task.CompletedTask;
+                    return;
                 }
 
                 var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location);
@@ -89,31 +90,31 @@ internal class Program
 
                 if (commandLineParameters.Switches.ContainsKey("sync"))
                 {
-                    SyncLanguages(languageFolder, languages);
+                    await SyncLanguagesAsync(languageFolder, languages).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("translateDeepL"))
                 {
                     var apiKey = commandLineParameters.Switches["apiKey"];
 
-                    AutoTranslateWithDeepL(apiKey, languages, sourceResource);
+                    await AutoTranslateWithDeepLAsync(apiKey, languages, sourceResource).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("translateGoogle"))
                 {
                     var projectId = commandLineParameters.Switches["projectId"];
 
-                    AutoTranslateWithGoogleAsync(projectId, languages, sourceResource).GetAwaiter().GetResult();
+                    await AutoTranslateWithGoogleAsync(projectId, languages, sourceResource).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("minify"))
                 {
-                    MinifyLanguages(languages);
+                    await MinifyLanguagesAsync(languages).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("uglify"))
                 {
-                    UglifyLanguages(languages);
+                    await UglifyLanguagesAsync(languages).ConfigureAwait(true);
                 }
             }
         }
@@ -122,7 +123,7 @@ internal class Program
             DebugHelper.DebugExceptionMessage(ex);
         }
 
-        return Task.CompletedTask;
+        //return Task.CompletedTask;
     }
 
     /// <summary>
@@ -130,7 +131,7 @@ internal class Program
     /// </summary>
     /// <param name="languageFolder">The language folder.</param>
     /// <param name="languages">The languages.</param>
-    private static async void SyncLanguages(string languageFolder, List<string> languages)
+    private static async Task SyncLanguagesAsync(string languageFolder, List<string> languages)
     {
         DebugHelper.DisplayAndLogMessage(
                    $"Reading Languages Folder {languageFolder} ...");
@@ -173,7 +174,7 @@ internal class Program
 
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourcePage.Name}' to language file '{file}'.");
 
-                        resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name).Resource.Add(sourceResource);
+                        resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
                     }
                 }
             }
@@ -213,7 +214,7 @@ internal class Program
                     updateFile = true;
 
                     DebugHelper.DisplayAndLogMessage(
-                        $"Removed no longer used Resource Page '{sourcePage.Name}' from language file '{file}'.");
+                        $"Removed no longer used Resource Page '{sourcePage!.Name}' from language file '{file}'.");
 
                     deleteResourceFile.Resources.Page.RemoveAll(p => p.Name == resourcePage.Name);
                 }
@@ -242,9 +243,10 @@ internal class Program
 
             ShowDivider(0);
 
-            var sw = new StreamWriter(file);
-            var writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, deleteResourceFile);
+            await using var sw = new StreamWriter(file);
+            await using JsonWriter writer = new JsonTextWriter(sw);
+
+             serializer.Serialize(writer, deleteResourceFile);
         }
 
         DebugHelper.DisplayAndLogMessage("All Languages Synced!");
@@ -254,7 +256,7 @@ internal class Program
     /// Minify all languages.
     /// </summary>
     /// <param name="languages">The languages.</param>
-    private static async void MinifyLanguages(IEnumerable<string> languages)
+    private static async Task MinifyLanguagesAsync(IEnumerable<string> languages)
     {
         foreach (var file in languages)
         {
@@ -279,7 +281,7 @@ internal class Program
     /// Un-Minify all languages.
     /// </summary>
     /// <param name="languages">The languages.</param>
-    private static async void UglifyLanguages(IEnumerable<string> languages)
+    private static async Task UglifyLanguagesAsync(IEnumerable<string> languages)
     {
         foreach (var file in languages)
         {
@@ -351,7 +353,7 @@ internal class Program
     /// <param name="languages">The Language Files</param>
     /// <param name="sourceResources">The source resources.</param>
     /// <returns>A Task representing the asynchronous operation.</returns>
-    private static async void AutoTranslateWithDeepL(
+    private static async Task AutoTranslateWithDeepLAsync(
         string apiKey,
         List<string> languages,
         ResourcesFile sourceResources)
@@ -363,7 +365,7 @@ internal class Program
 
         var translator = new Translator(apiKey);
 
-        var deepLanguageList = await translator.GetSourceLanguagesAsync();
+        var deepLanguageList = await translator.GetSourceLanguagesAsync().ConfigureAwait(true);
 
         foreach (var file in languages)
         {
@@ -392,7 +394,7 @@ internal class Program
                 {
                     var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
 
-                    var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+                    var translateResource = translatePage!.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
 
                     if (!string.Equals(
                             sourceResource.Text,
@@ -417,9 +419,9 @@ internal class Program
                                              LanguageCode.English,
                                              resourcesFile.Resources.Code == "pt"
                                                  ? LanguageCode.PortugueseEuropean
-                                                 : resourcesFile.Resources.Code);
+                                                 : resourcesFile.Resources.Code).ConfigureAwait(true);
 
-                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = translatedText.Text;
+                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
                 }
             }
 
@@ -509,7 +511,7 @@ internal class Program
                                      projectId,
                                      sourceResource.Text,
                                      sourceResources.Resources.Code,
-                                     resourcesFile.Resources.Code);
+                                     resourcesFile.Resources.Code).ConfigureAwait(true);
 
                     translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = result;
 
