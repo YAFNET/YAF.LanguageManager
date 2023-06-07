@@ -185,10 +185,11 @@ internal class Program
             }
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
-
-           var sw = new StreamWriter(file);
-           var writer = new JsonTextWriter(sw);
-           serializer.Serialize(writer, resourcesFile);
+            
+            await using var sw = new StreamWriter(file);
+            await using var writer = new JsonTextWriter(sw);
+           
+            serializer.Serialize(writer, resourcesFile);
         }
 
         // Remove legacy Resources
