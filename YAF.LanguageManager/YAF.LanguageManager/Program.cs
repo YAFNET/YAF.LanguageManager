@@ -215,7 +215,7 @@ internal class Program
                     updateFile = true;
 
                     DebugHelper.DisplayAndLogMessage(
-                        $"Removed no longer used Resource Page '{sourcePage!.Name}' from language file '{file}'.");
+                        $"Removed no longer used Resource Page '{resourcePage.Name}' from language file '{file}'.");
 
                     deleteResourceFile.Resources.Page.RemoveAll(p => p.Name == resourcePage.Name);
                 }
