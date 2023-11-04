@@ -27,6 +27,7 @@ namespace YAF.LanguageManager.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 
 /// <summary>
 /// The command line parameters.
@@ -45,9 +46,9 @@ public class CommandLineParameters : IDisposable
     public CommandLineParameters(IEnumerable<string> args, bool caseSensitive)
     {
         var index1 = (string)null;
-        foreach (var t in args)
+
+        foreach (var str in args.Select(t => t.Trim()))
         {
-            var str = t.Trim();
             if (str.StartsWith("/") || str.StartsWith("-"))
             {
                 var key = str.Remove(0, 1);
@@ -86,7 +87,7 @@ public class CommandLineParameters : IDisposable
             }
         }
     }
-        
+
     /// <summary>
     /// The text count.
     /// </summary>
@@ -130,7 +131,7 @@ public class CommandLineParameters : IDisposable
             {
                 return this.TextLines[index];
             }
-                    
+
             throw new IndexOutOfRangeException();
         }
     }

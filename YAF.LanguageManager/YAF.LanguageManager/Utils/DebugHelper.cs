@@ -57,9 +57,11 @@ internal static class DebugHelper
         for (; e != null; e = e.InnerException)
         {
             message =
-                $@"{message}{DateTime.Now:g} in {e.Source}\r\n
-                                   Machine: {Environment.MachineName} 
-                                   User Name: {Environment.UserName}\r\n{e.Message}\r\n{e.StackTrace}\r\n-----------------------------\r\n";
+                $"""
+                 {message}{DateTime.Now:g} in {e.Source}\r\n
+                                                    Machine: {Environment.MachineName}
+                                                    User Name: {Environment.UserName}\r\n{e.Message}\r\n{e.StackTrace}\r\n-----------------------------\r\n
+                 """;
 
             Trace.WriteLine(message);
         }

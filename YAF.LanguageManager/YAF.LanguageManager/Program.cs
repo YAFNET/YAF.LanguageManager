@@ -46,7 +46,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
         //Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "c:\\Users\\iherb\\yafnet-translation.json");
-        
+
         using var debug = new SaveDebug(
                    Path.GetDirectoryName(typeof(Program).Module.FullyQualifiedName),
                    "LanguageSync.log");
@@ -185,10 +185,10 @@ internal class Program
             }
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
-            
+
             await using var sw = new StreamWriter(file);
             await using var writer = new JsonTextWriter(sw);
-           
+
             serializer.Serialize(writer, resourcesFile);
         }
 
