@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2023 Ingo Herbote
+ * Copyright (C) 2014-2024 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -41,7 +41,7 @@ public class CommandLineParameters : IDisposable
     /// The args.
     /// </param>
     /// <param name="caseSensitive">
-    /// The l case sensitive.
+    /// case sensitive.
     /// </param>
     public CommandLineParameters(IEnumerable<string> args, bool caseSensitive)
     {
@@ -49,7 +49,7 @@ public class CommandLineParameters : IDisposable
 
         foreach (var str in args.Select(t => t.Trim()))
         {
-            if (str.StartsWith("/") || str.StartsWith("-"))
+            if (str.StartsWith('/') || str.StartsWith('-'))
             {
                 var key = str.Remove(0, 1);
 
@@ -58,10 +58,10 @@ public class CommandLineParameters : IDisposable
                     key = key.ToLower();
                 }
 
-                if (key.Contains(":"))
+                if (key.Contains(':'))
                 {
-                    var value = key[(key.IndexOf(":", StringComparison.Ordinal) +1)..];
-                    key = key.Remove(key.IndexOf(":", StringComparison.Ordinal));
+                    var value = key[(key.IndexOf(':', StringComparison.Ordinal) +1)..];
+                    key = key.Remove(key.IndexOf(':', StringComparison.Ordinal));
 
                     this.Switches.Add(key, value);
                 }
@@ -96,12 +96,12 @@ public class CommandLineParameters : IDisposable
     /// <summary>
     /// Gets the switches.
     /// </summary>
-    public StringDictionary Switches { get; } = new ();
+    public StringDictionary Switches { get; } = [];
 
     /// <summary>
     /// Gets the text lines.
     /// </summary>
-    public StringCollection TextLines { get; } = new ();
+    public StringCollection TextLines { get; } = [];
 
     /// <summary>
     /// The this.

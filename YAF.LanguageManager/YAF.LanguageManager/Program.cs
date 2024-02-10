@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2023 Ingo Herbote
+ * Copyright (C) 2014-2024 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -41,12 +41,10 @@ using YAF.LanguageManager.Utils;
 using Formatting = Newtonsoft.Json.Formatting;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
-internal class Program
+internal static class Program
 {
     private static async Task Main(string[] args)
     {
-        //Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "c:\\Users\\iherb\\yafnet-translation.json");
-
         using var debug = new SaveDebug(
                    Path.GetDirectoryName(typeof(Program).Module.FullyQualifiedName),
                    "LanguageSync.log");
@@ -65,11 +63,11 @@ internal class Program
             {
                 Console.WriteLine("Usage: YAF.LanguageManager pathToLanguageFiles\r\n");
                 Console.WriteLine("Options:\r\n");
-                Console.WriteLine("    -sync                                Update and synchronize language files");
-                Console.WriteLine("    -minify                              Minify all language files");
-                Console.WriteLine("    -uglify                              Un-Minify all language files");
-                Console.WriteLine("    -translateDeepL  -apiKey:123456      Automatic translation via DeepL");
-                Console.WriteLine("    -translateGoogle -projectId:123456   Automatic translation via Google");
+                Console.WriteLine("    -sync                                                                        Update and synchronize language files");
+                Console.WriteLine("    -minify                                                                      Minify all language files");
+                Console.WriteLine("    -uglify                                                                      Un-Minify all language files");
+                Console.WriteLine("    -translateDeepL  -apiKey:123456                                              Automatic translation via DeepL");
+                Console.WriteLine("    -translateGoogle -projectId:123456 -credentialsFile:yafnet-translation.json  Automatic translation via Google");
                 ShowDivider(1);
             }
             else
@@ -104,6 +102,10 @@ internal class Program
                 {
                     var projectId = commandLineParameters.Switches["projectId"];
 
+                    var credentialsFiled = commandLineParameters.Switches["credentialsFile"];
+
+                    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsFiled);
+
                     await AutoTranslateWithGoogleAsync(projectId, languages, sourceResource).ConfigureAwait(true);
                 }
 
@@ -122,8 +124,6 @@ internal class Program
         {
             DebugHelper.DebugExceptionMessage(ex);
         }
-
-        //return Task.CompletedTask;
     }
 
     /// <summary>
@@ -151,7 +151,7 @@ internal class Program
             {
                 foreach (var sourceResource in sourcePage.Resource)
                 {
-                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
+                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
 
                     // Add Missing pages in languages
                     if (translatePage == null)
@@ -163,7 +163,7 @@ internal class Program
                     }
                     else
                     {
-                        var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+                        var translateResource = translatePage.Resource.Find(r => r.Tag == sourceResource.Tag);
 
                         if (translateResource != null)
                         {
@@ -174,7 +174,7 @@ internal class Program
 
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourcePage.Name}' to language file '{file}'.");
 
-                        resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
+                        resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
                     }
                 }
             }
@@ -208,7 +208,7 @@ internal class Program
 
             foreach (var resourcePage in resourcesFile.Resources.Page)
             {
-                var sourcePage = sourceResources.Resources.Page.FirstOrDefault(p => p.Name == resourcePage.Name);
+                var sourcePage = sourceResources.Resources.Page.Find(p => p.Name == resourcePage.Name);
 
                 if (sourcePage == null)
                 {
@@ -222,7 +222,7 @@ internal class Program
                 else
                 {
                     foreach (var resource in resourcePage.Resource.Where(
-                                 resource => sourcePage.Resource.All(res => res.Tag != resource.Tag)))
+                                 resource => sourcePage.Resource.TrueForAll(res => res.Tag != resource.Tag)))
                     {
                         updateFile = true;
 
@@ -319,9 +319,9 @@ internal class Program
         languageResource.Resources.Page.ForEach(p => p.Name = p.Name.ToUpper());
         languageResource.Resources.Page.ForEach(p => p.Resource.ForEach(i => i.Tag = i.Tag.ToUpper()));
 
-        languageResource.Resources.Page = languageResource.Resources.Page.OrderBy(p => p.Name).ToList();
+        languageResource.Resources.Page = [.. languageResource.Resources.Page.OrderBy(p => p.Name)];
 
-        languageResource.Resources.Page.ForEach(p => p.Resource = p.Resource.OrderBy(r => r.Tag).ToList());
+        languageResource.Resources.Page.ForEach(p => p.Resource = [.. p.Resource.OrderBy(r => r.Tag)]);
 
         return languageResource;
     }
@@ -379,7 +379,7 @@ internal class Program
                 continue;
             }
 
-            if (deepLanguageList.All(l => l.Code != resourcesFile.Resources.Code))
+            if (Array.TrueForAll(deepLanguageList, l => l.Code != resourcesFile.Resources.Code))
             {
                 continue;
             }
@@ -393,9 +393,9 @@ internal class Program
 
                 foreach (var sourceResource in sourcePage.Resource)
                 {
-                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
+                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
 
-                    var translateResource = translatePage!.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+                    var translateResource = translatePage!.Resource.Find(r => r.Tag == sourceResource.Tag);
 
                     if (!string.Equals(
                             sourceResource.Text,
@@ -422,7 +422,7 @@ internal class Program
                                                  ? LanguageCode.PortugueseEuropean
                                                  : resourcesFile.Resources.Code).ConfigureAwait(true);
 
-                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
+                    translatePage.Resource.Find(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
                 }
             }
 
@@ -457,8 +457,6 @@ internal class Program
     {
         var provider = new TranslateProvider();
 
-        var countTranslations = 0;
-
         foreach (var file in languages)
         {
             var resourcesFile = LoadFile(file);
@@ -479,14 +477,9 @@ internal class Program
 
                 foreach (var sourceResource in sourcePage.Resource)
                 {
-                    if (countTranslations == 1000)
-                    {
-                        //break;
-                    }
+                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
 
-                    var translatePage = resourcesFile.Resources.Page.FirstOrDefault(p => p.Name == sourcePage.Name);
-
-                    var translateResource = translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag);
+                    var translateResource = translatePage.Resource.Find(r => r.Tag == sourceResource.Tag);
 
                     if (!string.Equals(
                             sourceResource.Text,
@@ -514,9 +507,7 @@ internal class Program
                                      sourceResources.Resources.Code,
                                      resourcesFile.Resources.Code).ConfigureAwait(true);
 
-                    translatePage.Resource.FirstOrDefault(r => r.Tag == sourceResource.Tag).Text = result;
-
-                    countTranslations++;
+                    translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
                 }
             }
 

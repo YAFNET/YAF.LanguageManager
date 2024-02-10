@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2023 Ingo Herbote
+ * Copyright (C) 2014-2024 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -36,17 +36,17 @@ public class SaveDebug : IDisposable
     /// <summary>
     /// The log file name.
     /// </summary>
-    private readonly string logFileName;
+    private readonly string _logFileName;
 
     /// <summary>
     /// The log stream.
     /// </summary>
-    private readonly StringWriter logStream;
+    private readonly StringWriter _logStream;
 
     /// <summary>
     /// The debug listener.
     /// </summary>
-    private readonly TextWriterTraceListener debugListener;
+    private readonly TextWriterTraceListener _debugListener;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SaveDebug"/> class.
@@ -59,13 +59,13 @@ public class SaveDebug : IDisposable
     /// </param>
     public SaveDebug(string path, string logName)
     {
-        this.logFileName = $"{path}\\{logName}";
+        this._logFileName = $"{path}\\{logName}";
 
         try
         {
-            this.logStream = new StringWriter();
-            this.debugListener = new TextWriterTraceListener(this.logStream);
-            Trace.Listeners.Add(this.debugListener);
+            this._logStream = new StringWriter();
+            this._debugListener = new TextWriterTraceListener(this._logStream);
+            Trace.Listeners.Add(this._debugListener);
         }
         catch
         {
@@ -81,18 +81,18 @@ public class SaveDebug : IDisposable
         try
         {
             Trace.Flush();
-            if (this.logStream.ToString().Length > 0)
+            if (this._logStream.ToString().Length > 0)
             {
-                var streamWriter = !File.Exists(this.logFileName)
-                                       ? File.CreateText(this.logFileName)
-                                       : File.AppendText(this.logFileName);
-                streamWriter.Write(this.logStream.ToString());
+                var streamWriter = !File.Exists(this._logFileName)
+                                       ? File.CreateText(this._logFileName)
+                                       : File.AppendText(this._logFileName);
+                streamWriter.Write(this._logStream.ToString());
                 streamWriter.Flush();
                 streamWriter.Close();
             }
 
-            this.logStream.Close();
-            Trace.Listeners.Remove(this.debugListener);
+            this._logStream.Close();
+            Trace.Listeners.Remove(this._debugListener);
         }
         catch (Exception)
         {

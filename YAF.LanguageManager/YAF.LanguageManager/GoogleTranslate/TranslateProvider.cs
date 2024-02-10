@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2023 Ingo Herbote
+ * Copyright (C) 2014-2024 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -41,6 +41,15 @@ public class TranslateProvider : ITranslateProvider
     private static readonly AsyncLazy<TranslationServiceClient> Client = new(
         () => TranslationServiceClient.CreateAsync());
 
+    /// <summary>
+    /// Execute as an asynchronous operation.
+    /// </summary>
+    /// <param name="projectId">The project Id</param>
+    /// <param name="text">The text.</param>
+    /// <param name="sourceLanguage">The source language.</param>
+    /// <param name="targetLanguage">The target language.</param>
+    /// <param name="cancellationToken">The cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+    /// <returns>A Task&lt;System.String&gt; representing the asynchronous operation.</returns>
     public async Task<string> ExecuteAsync(
         string projectId,
         string text,

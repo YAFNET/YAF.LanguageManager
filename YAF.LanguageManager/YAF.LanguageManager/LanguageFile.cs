@@ -1,7 +1,7 @@
 ﻿/* Yet Another Forum.NET
  * Copyright (C) 2003-2005 Bjørnar Henden
  * Copyright (C) 2006-2013 Jaben Cargman
- * Copyright (C) 2014-2023 Ingo Herbote
+ * Copyright (C) 2014-2024 Ingo Herbote
  * http://www.yetanotherforum.net/
  *
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -30,11 +30,22 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+/// <summary>
+/// Class Page.
+/// </summary>
 public class Page
 {
+    /// <summary>
+    /// Gets or sets the name.
+    /// </summary>
+    /// <value>The name.</value>
     [JsonProperty("@name")]
     public string Name { get; set; }
 
+    /// <summary>
+    /// Gets or sets the resource.
+    /// </summary>
+    /// <value>The resource.</value>
     [JsonConverter(typeof(ResourceListConverter))]
     public List<Resource> Resource { get; set; }
 }
@@ -73,6 +84,9 @@ internal class ResourceListConverter : JsonConverter
     }
 }
 
+/// <summary>
+/// Class Resource.
+/// </summary>
 [JsonObject]
 public class Resource
 {
