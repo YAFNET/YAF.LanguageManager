@@ -22,7 +22,7 @@
  * under the License.
  */
 
-namespace YAF.LanguageManager.GoogleTranslate;
+namespace YAFNET.LanguageManager.GoogleTranslate;
 
 using System.Threading;
 using System.Threading.Tasks;

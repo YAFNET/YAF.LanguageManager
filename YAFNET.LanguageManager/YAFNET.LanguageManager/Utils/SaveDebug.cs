@@ -22,7 +22,7 @@
  * under the License.
  */
 
-namespace YAF.LanguageManager.Utils;
+namespace YAFNET.LanguageManager.Utils;
 
 using System;
 using System.Diagnostics;

@@ -22,7 +22,7 @@
  * under the License.
  */
 
-namespace YAF.LanguageManager;
+namespace YAFNET.LanguageManager;
 
 using System;
 using System.Collections.Generic;
@@ -35,8 +35,8 @@ using DeepL;
 
 using Newtonsoft.Json;
 
-using YAF.LanguageManager.GoogleTranslate;
-using YAF.LanguageManager.Utils;
+using YAFNET.LanguageManager.GoogleTranslate;
+using YAFNET.LanguageManager.Utils;
 
 using Formatting = Newtonsoft.Json.Formatting;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;

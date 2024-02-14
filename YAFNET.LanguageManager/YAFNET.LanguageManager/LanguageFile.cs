@@ -22,7 +22,7 @@
  * under the License.
  */
 
-namespace YAF.LanguageManager;
+namespace YAFNET.LanguageManager;
 
 using System;
 using System.Collections.Generic;
