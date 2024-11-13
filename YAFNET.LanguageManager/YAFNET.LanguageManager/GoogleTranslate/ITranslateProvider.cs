@@ -42,5 +42,5 @@ public interface ITranslateProvider
     /// <param name="cancellationToken">The cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
     /// <returns>Task&lt;System.String&gt;.</returns>
     Task<string> ExecuteAsync(string projectId,
-                              string text, string sourceLanguage, string targetLanguage, CancellationToken cancellationToken);
+                              string text, string sourceLanguage, string targetLanguage, CancellationToken cancellationToken = default);
 }
