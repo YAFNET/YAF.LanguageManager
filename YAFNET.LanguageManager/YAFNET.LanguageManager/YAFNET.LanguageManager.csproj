@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="DeepL.net" Version="1.11.0" />
-    <PackageReference Include="Google.Cloud.Translate.V3" Version="3.8.0" />
+    <PackageReference Include="Google.Cloud.Translate.V3" Version="3.9.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="9.32.0.97167">
