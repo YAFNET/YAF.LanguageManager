@@ -14,7 +14,7 @@
     <PackageReference Include="Google.Cloud.Translate.V3" Version="3.9.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.3.0.106239">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.4.0.108396">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
