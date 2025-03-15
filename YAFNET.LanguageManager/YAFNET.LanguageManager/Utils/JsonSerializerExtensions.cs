@@ -24,9 +24,6 @@
 
 namespace YAF.LanguageManager.Utils;
 
-using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -57,22 +54,18 @@ public static class JsonSerializerExtensions
 
     public static async Task<string> SerializeJson<T>(this T instance, JsonSerializerSettings settings = null)
     {
-        using (var stream = new MemoryStream())
-        {
-            await instance.SerializeJson(stream, settings).ConfigureAwait(false);
-            return Encoding.UTF8.GetString(stream.ToArray());
-        }
+        using var stream = new MemoryStream();
+        await instance.SerializeJson(stream, settings).ConfigureAwait(false);
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     public static Task SerializeJson<T>(this T instance, Stream toStream, JsonSerializerSettings settings = null)
     {
         return Task.Run(() =>
-            {
-                using (var streamWriter = new StreamWriter(toStream))
-                {
-                    var serializer = settings == null ? JsonSerializer.CreateDefault() : JsonSerializer.Create(settings);
-                    serializer.Serialize(streamWriter, instance);
-                }
-            });
+        {
+            using var streamWriter = new StreamWriter(toStream);
+            var serializer = settings == null ? JsonSerializer.CreateDefault() : JsonSerializer.Create(settings);
+            serializer.Serialize(streamWriter, instance);
+        });
     }
 }
