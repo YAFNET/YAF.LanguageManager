@@ -37,23 +37,19 @@ public class CommandLineParameters : IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandLineParameters"/> class.
     /// </summary>
-    /// <param name="args">
-    /// The args.
-    /// </param>
-    /// <param name="caseSensitive">
-    /// case sensitive.
-    /// </param>
-    public CommandLineParameters(IEnumerable<string> args, bool caseSensitive)
+    /// <param name="args">The arguments.</param>
+    /// <param name="usCaseSensitive">if set to <c>true</c> [us case-sensitive].</param>
+    public CommandLineParameters(IEnumerable<string> args, bool usCaseSensitive)
     {
-        var index1 = (string)null;
+        string index1 = null;
 
         foreach (var str in args.Select(t => t.Trim()))
         {
             if (str.StartsWith('/') || str.StartsWith('-'))
             {
-                var key = str.Remove(0, 1);
+                var key = str[1..];
 
-                if (!caseSensitive)
+                if (!usCaseSensitive)
                 {
                     key = key.ToLower();
                 }
@@ -61,7 +57,7 @@ public class CommandLineParameters : IDisposable
                 if (key.Contains(':'))
                 {
                     var value = key[(key.IndexOf(':', StringComparison.Ordinal) +1)..];
-                    key = key.Remove(key.IndexOf(':', StringComparison.Ordinal));
+                    key = key[..key.IndexOf(':', StringComparison.Ordinal)];
 
                     this.Switches.Add(key, value);
                 }
@@ -137,9 +133,20 @@ public class CommandLineParameters : IDisposable
     }
 
     /// <summary>
-    /// The dispose.
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        // Cleanup
     }
 }

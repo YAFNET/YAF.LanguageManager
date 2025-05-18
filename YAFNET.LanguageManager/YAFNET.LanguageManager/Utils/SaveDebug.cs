@@ -74,9 +74,19 @@ public class SaveDebug : IDisposable
     }
 
     /// <summary>
-    /// The dispose.
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
     {
         try
         {
@@ -84,8 +94,8 @@ public class SaveDebug : IDisposable
             if (this._logStream.ToString().Length > 0)
             {
                 var streamWriter = !File.Exists(this._logFileName)
-                                       ? File.CreateText(this._logFileName)
-                                       : File.AppendText(this._logFileName);
+                    ? File.CreateText(this._logFileName)
+                    : File.AppendText(this._logFileName);
                 streamWriter.Write(this._logStream.ToString());
                 streamWriter.Flush();
                 streamWriter.Close();

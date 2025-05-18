@@ -22,6 +22,12 @@
  * under the License.
  */
 
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Web;
+
+using DeepL.Model;
+
 namespace YAFNET.LanguageManager;
 
 using System;
@@ -35,7 +41,6 @@ using DeepL;
 
 using Newtonsoft.Json;
 
-using YAFNET.LanguageManager.GoogleTranslate;
 using YAFNET.LanguageManager.Utils;
 
 using Formatting = Newtonsoft.Json.Formatting;
@@ -54,7 +59,7 @@ internal static class Program
 
             ShowDivider(0);
 
-            Console.WriteLine("YetAnotherForum.NET JSON Language Synchronizer v1.0.0");
+            Console.WriteLine("YetAnotherForum.NET JSON Language Synchronizer v1.0.4");
 
             ShowDivider(2);
 
@@ -63,11 +68,11 @@ internal static class Program
             {
                 Console.WriteLine("Usage: YAF.LanguageManager pathToLanguageFiles\r\n");
                 Console.WriteLine("Options:\r\n");
-                Console.WriteLine("    -sync                                                                        Update and synchronize language files");
-                Console.WriteLine("    -minify                                                                      Minify all language files");
-                Console.WriteLine("    -uglify                                                                      Un-Minify all language files");
-                Console.WriteLine("    -translateDeepL  -apiKey:123456                                              Automatic translation via DeepL");
-                Console.WriteLine("    -translateGoogle -projectId:123456 -credentialsFile:yafnet-translation.json  Automatic translation via Google");
+                Console.WriteLine("    -sync                                        Update and synchronize language files");
+                Console.WriteLine("    -minify                                      Minify all language files");
+                Console.WriteLine("    -uglify                                      Un-Minify all language files");
+                Console.WriteLine("    -translateDeepL  -apiKey:123456              Automatic translation via DeepL");
+                Console.WriteLine("    -translateGoogle                             Automatic translation via Google API");
                 ShowDivider(1);
             }
             else
@@ -100,13 +105,7 @@ internal static class Program
 
                 if (commandLineParameters.Switches.ContainsKey("translateGoogle"))
                 {
-                    var projectId = commandLineParameters.Switches["projectId"];
-
-                    var credentialsFiled = commandLineParameters.Switches["credentialsFile"];
-
-                    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsFiled);
-
-                    await AutoTranslateWithGoogleAsync(projectId, languages, sourceResource).ConfigureAwait(true);
+                    await AutoTranslateWithGoogleFreeAsync(languages, sourceResource).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("minify"))
@@ -157,7 +156,7 @@ internal static class Program
                     if (translatePage == null)
                     {
                         updateFile = true;
-                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to language file '{file}'.");
+                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to the language file '{file}'.");
 
                         resourcesFile.Resources.Page.Add(sourcePage);
                     }
@@ -172,7 +171,7 @@ internal static class Program
 
                         updateFile = true;
 
-                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourcePage.Name}' to language file '{file}'.");
+                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourceResource.Tag}' ('{sourcePage.Name}') to the language file '{file}'.");
 
                         resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
                     }
@@ -227,7 +226,7 @@ internal static class Program
                         updateFile = true;
 
                         DebugHelper.DisplayAndLogMessage(
-                            $"Removed no longer used Resource '{sourcePage.Name}' from language file '{file}'.");
+                            $"Removed no longer used Resource '{resource.Tag}' from language file '{file}'.");
 
                         deleteResourceFile.Resources.Page.First(p => p.Name == resourcePage.Name).Resource
                             .RemoveAll(r => r.Tag == resource.Tag);
@@ -415,14 +414,24 @@ internal static class Program
 
                     updateFile = true;
 
-                    var translatedText = await translator.TranslateTextAsync(
-                                             sourceResource.Text,
-                                             LanguageCode.English,
-                                             resourcesFile.Resources.Code == "pt"
-                                                 ? LanguageCode.PortugueseEuropean
-                                                 : resourcesFile.Resources.Code).ConfigureAwait(true);
+                    TextResult translatedText = null;
 
-                    translatePage.Resource.Find(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
+                    try
+                    {
+                        translatedText = await translator.TranslateTextAsync(
+                            sourceResource.Text,
+                            LanguageCode.English,
+                            resourcesFile.Resources.Code == "pt"
+                                ? LanguageCode.PortugueseEuropean
+                                : resourcesFile.Resources.Code).ConfigureAwait(true);
+                    }
+                    finally
+                    {
+                        if (translatedText is not null)
+                        {
+                            translatePage.Resource.Find(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
+                        }
+                    }
                 }
             }
 
@@ -448,15 +457,11 @@ internal static class Program
     /// </summary>
     /// <param name="languages">The Language Files</param>
     /// <param name="sourceResources">The source resources.</param>
-    /// <param name="projectId">The google project Id</param>
     /// <returns>A Task representing the asynchronous operation.</returns>
-    private static async Task AutoTranslateWithGoogleAsync(
-        string projectId,
+    private static async Task AutoTranslateWithGoogleFreeAsync(
         List<string> languages,
         ResourcesFile sourceResources)
     {
-        var provider = new TranslateProvider();
-
         foreach (var file in languages)
         {
             var resourcesFile = LoadFile(file);
@@ -501,13 +506,29 @@ internal static class Program
 
                     updateFile = true;
 
-                    var result = await provider.ExecuteAsync(
-                                     projectId,
-                                     sourceResource.Text,
-                                     sourceResources.Resources.Code,
-                                     resourcesFile.Resources.Code).ConfigureAwait(true);
 
-                    translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
+                    string result = null;
+
+                    try
+                    {
+                        var client = new HttpClient(new HttpClientHandler());
+
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
+
+                        var url =
+                            $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={resourcesFile.Resources.Code}&dt=t&q={HttpUtility.HtmlEncode(sourceResource.Text)}";
+
+                        var json = await client.GetFromJsonAsync<dynamic[]>(url);
+
+                        result = Convert.ToString(json[0][0][0]);
+                    }
+                    finally
+                    {
+                        if (!string.IsNullOrEmpty(result))
+                        {
+                            translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
+                        }
+                    }
                 }
             }
 
@@ -520,7 +541,7 @@ internal static class Program
 
             ShowDivider(0);
 
-            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
+            var serializer = new JsonSerializer { Formatting = Formatting.Indented };
 
             await using var sw = new StreamWriter(file);
             await using JsonWriter writer = new JsonTextWriter(sw);
