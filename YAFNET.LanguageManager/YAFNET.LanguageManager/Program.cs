@@ -26,8 +26,6 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Web;
 
-using DeepL.Model;
-
 namespace YAFNET.LanguageManager;
 
 using System;
@@ -36,8 +34,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-
-using DeepL;
 
 using Newtonsoft.Json;
 
@@ -73,7 +69,6 @@ internal static class Program
                 Console.WriteLine("    -sync                                        Update and synchronize language files");
                 Console.WriteLine("    -minify                                      Minify all language files");
                 Console.WriteLine("    -uglify                                      Un-Minify all language files");
-                Console.WriteLine("    -translateDeepL  -apiKey:123456              Automatic translation via DeepL");
                 Console.WriteLine("    -translateGoogle                             Automatic translation via Google API");
                 ShowDivider(1);
             }
@@ -96,13 +91,6 @@ internal static class Program
                 if (commandLineParameters.Switches.ContainsKey("sync"))
                 {
                     await SyncLanguagesAsync(languageFolder, languages).ConfigureAwait(true);
-                }
-
-                if (commandLineParameters.Switches.ContainsKey("translateDeepL"))
-                {
-                    var apiKey = commandLineParameters.Switches["apiKey"];
-
-                    await AutoTranslateWithDeepLAsync(apiKey, languages, sourceResource).ConfigureAwait(true);
                 }
 
                 if (commandLineParameters.Switches.ContainsKey("translateGoogle"))
@@ -356,110 +344,6 @@ internal static class Program
         }
 
         Console.WriteLine("\r\n");
-    }
-
-    /// <summary>Automatic translate languages via DeepL Api.</summary>
-    /// <param name="apiKey">The Api Key</param>
-    /// <param name="languages">The Language Files</param>
-    /// <param name="sourceResources">The source resources.</param>
-    /// <returns>A Task representing the asynchronous operation.</returns>
-    private static async Task AutoTranslateWithDeepLAsync(
-        string apiKey,
-        List<string> languages,
-        ResourcesFile sourceResources)
-    {
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            return;
-        }
-
-        var translator = new Translator(apiKey);
-
-        var deepLanguageList = await translator.GetSourceLanguagesAsync().ConfigureAwait(true);
-
-        foreach (var file in languages)
-        {
-            var resourcesFile = LoadFile(file);
-
-            var updateFile = false;
-
-            if (resourcesFile.Resources.Code == "en")
-            {
-                continue;
-            }
-
-            if (Array.TrueForAll(deepLanguageList, l => l.Code != resourcesFile.Resources.Code))
-            {
-                continue;
-            }
-
-            foreach (var sourcePage in sourceResources.Resources.Page)
-            {
-                if (sourcePage.Name.Equals("TEMPLATES"))
-                {
-                    continue;
-                }
-
-                foreach (var sourceResource in sourcePage.Resource)
-                {
-                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
-
-                    var translateResource = translatePage!.Resource.Find(r => r.Tag == sourceResource.Tag);
-
-                    if (!string.Equals(
-                            sourceResource.Text,
-                            translateResource.Text,
-                            StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    if (translateResource.Tag.Equals("COOKIES_TEXT"))
-                    {
-                        continue;
-                    }
-
-                    DebugHelper.DisplayAndLogMessage(
-                        $"Translate Page: '{translatePage.Name}': Tag: '{translateResource.Tag}'");
-
-                    updateFile = true;
-
-                    TextResult translatedText = null;
-
-                    try
-                    {
-                        translatedText = await translator.TranslateTextAsync(
-                            sourceResource.Text,
-                            LanguageCode.English,
-                            resourcesFile.Resources.Code == "pt"
-                                ? LanguageCode.PortugueseEuropean
-                                : resourcesFile.Resources.Code).ConfigureAwait(true);
-                    }
-                    finally
-                    {
-                        if (translatedText is not null)
-                        {
-                            translatePage.Resource.Find(r => r.Tag == sourceResource.Tag)!.Text = translatedText.Text;
-                        }
-                    }
-                }
-            }
-
-            if (!updateFile)
-            {
-                continue;
-            }
-
-            DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
-
-            ShowDivider(0);
-
-            var serializer = new JsonSerializer {Formatting = Formatting.Indented};
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, resourcesFile);
-        }
     }
 
     /// <summary>
