@@ -59,7 +59,9 @@ internal static class Program
 
             ShowDivider(0);
 
-            Console.WriteLine("YetAnotherForum.NET JSON Language Synchronizer v1.0.4");
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+
+            Console.WriteLine($"YetAnotherForum.NET JSON Language Synchronizer v{version}");
 
             ShowDivider(2);
 
@@ -172,6 +174,14 @@ internal static class Program
                         updateFile = true;
 
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourceResource.Tag}' ('{sourcePage.Name}') to the language file '{file}'.");
+
+                        // Auto translate
+                        var result = await TranslateWithGoogleAsync(sourceResource.Text, resourcesFile.Resources.Code);
+
+                        if (!string.IsNullOrEmpty(result))
+                        {
+                            sourceResource.Text = result;
+                        }
 
                         resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
                     }
@@ -506,28 +516,11 @@ internal static class Program
 
                     updateFile = true;
 
+                    var result = await TranslateWithGoogleAsync(sourceResource.Text, resourcesFile.Resources.Code);
 
-                    string result = null;
-
-                    try
+                    if (!string.IsNullOrEmpty(result))
                     {
-                        var client = new HttpClient(new HttpClientHandler());
-
-                        client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
-
-                        var url =
-                            $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={resourcesFile.Resources.Code}&dt=t&q={HttpUtility.HtmlEncode(sourceResource.Text)}";
-
-                        var json = await client.GetFromJsonAsync<dynamic[]>(url);
-
-                        result = Convert.ToString(json[0][0][0]);
-                    }
-                    finally
-                    {
-                        if (!string.IsNullOrEmpty(result))
-                        {
-                            translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
-                        }
+                        translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
                     }
                 }
             }
@@ -547,5 +540,30 @@ internal static class Program
             await using JsonWriter writer = new JsonTextWriter(sw);
             serializer.Serialize(writer, resourcesFile);
         }
+    }
+
+    private static async Task<string> TranslateWithGoogleAsync(string inputToTranslate, string targetLanguageCode)
+    {
+        string result;
+
+        try
+        {
+            var client = new HttpClient(new HttpClientHandler());
+
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
+
+            var url =
+                $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={inputToTranslate}&dt=t&q={HttpUtility.HtmlEncode(targetLanguageCode)}";
+
+            var json = await client.GetFromJsonAsync<dynamic[]>(url);
+
+            result = Convert.ToString(json[0][0][0]);
+        }
+        catch (Exception)
+        {
+            result = null;
+        }
+
+        return result;
     }
 }
