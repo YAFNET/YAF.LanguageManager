@@ -426,6 +426,12 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Translates the with google asynchronous.
+    /// </summary>
+    /// <param name="inputToTranslate">The input to translate.</param>
+    /// <param name="targetLanguageCode">The target language code.</param>
+    /// <returns>System.Threading.Tasks.Task&lt;System.String&gt;.</returns>
     private static async Task<string> TranslateWithGoogleAsync(string inputToTranslate, string targetLanguageCode)
     {
         string result;
@@ -437,7 +443,7 @@ internal static class Program
             client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
 
             var url =
-                $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={inputToTranslate}&dt=t&q={HttpUtility.HtmlEncode(targetLanguageCode)}";
+                $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetLanguageCode}&dt=t&q={HttpUtility.HtmlEncode(inputToTranslate)}";
 
             var json = await client.GetFromJsonAsync<dynamic[]>(url);
 
