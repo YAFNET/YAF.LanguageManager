@@ -148,6 +148,18 @@ internal static class Program
                         updateFile = true;
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to the language file '{file}'.");
 
+                        // translate page
+                        foreach (var resource in sourcePage.Resource)
+                        {
+                            // Auto translate
+                            var result = await TranslateWithGoogleAsync(resource.Text, resourcesFile.Resources.Code);
+
+                            if (!string.IsNullOrEmpty(result))
+                            {
+                                resource.Text = result;
+                            }
+                        }
+
                         resourcesFile.Resources.Page.Add(sourcePage);
                     }
                     else
