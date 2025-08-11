@@ -148,19 +148,21 @@ internal static class Program
                         updateFile = true;
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to the language file '{file}'.");
 
+                        var translatedPage = new Page() { Name = sourcePage.Name, Resource = [] };
+
                         // translate page
                         foreach (var resource in sourcePage.Resource)
                         {
                             // Auto translate
                             var result = await TranslateWithGoogleAsync(resource.Text, resourcesFile.Resources.Code);
 
-                            if (!string.IsNullOrEmpty(result))
-                            {
-                                resource.Text = result;
-                            }
+                            var text = !string.IsNullOrEmpty(result) ? result : resource.Text;
+
+                            translatedPage.Resource.Add(new Resource
+                                { Tag = resource.Tag, Text = text });
                         }
 
-                        resourcesFile.Resources.Page.Add(sourcePage);
+                        resourcesFile.Resources.Page.Add(translatedPage);
                     }
                     else
                     {
@@ -178,12 +180,10 @@ internal static class Program
                         // Auto translate
                         var result = await TranslateWithGoogleAsync(sourceResource.Text, resourcesFile.Resources.Code);
 
-                        if (!string.IsNullOrEmpty(result))
-                        {
-                            sourceResource.Text = result;
-                        }
+                        var text = !string.IsNullOrEmpty(result) ? result : sourceResource.Text;
 
-                        resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(sourceResource);
+                        resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(new Resource
+                            { Tag = sourceResource.Tag, Text = text });
                     }
                 }
             }
@@ -230,16 +230,16 @@ internal static class Program
                 }
                 else
                 {
-                    foreach (var resource in resourcePage.Resource.Where(
-                                 resource => sourcePage.Resource.TrueForAll(res => res.Tag != resource.Tag)))
+                    foreach (var tag in resourcePage.Resource.Where(
+                                 resource => sourcePage.Resource.TrueForAll(res => res.Tag != resource.Tag)).Select(resource => resource.Tag))
                     {
                         updateFile = true;
 
                         DebugHelper.DisplayAndLogMessage(
-                            $"Removed no longer used Resource '{resource.Tag}' from language file '{file}'.");
+                            $"Removed no longer used Resource '{tag}' from language file '{file}'.");
 
                         deleteResourceFile.Resources.Page.First(p => p.Name == resourcePage.Name).Resource
-                            .RemoveAll(r => r.Tag == resource.Tag);
+                            .RemoveAll(r => r.Tag == tag);
                     }
                 }
             }
