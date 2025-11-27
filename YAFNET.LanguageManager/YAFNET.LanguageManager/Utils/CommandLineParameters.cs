@@ -119,18 +119,7 @@ public class CommandLineParameters : IDisposable
     /// <returns>
     /// The <see cref="string"/>.
     /// </returns>
-    public string this[int index]
-    {
-        get
-        {
-            if (index < this.TextLines.Count)
-            {
-                return this.TextLines[index];
-            }
-
-            throw new IndexOutOfRangeException();
-        }
-    }
+    public string this[int index] => index < this.TextLines.Count ? this.TextLines[index] : throw new IndexOutOfRangeException();
 
     /// <summary>
     /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.

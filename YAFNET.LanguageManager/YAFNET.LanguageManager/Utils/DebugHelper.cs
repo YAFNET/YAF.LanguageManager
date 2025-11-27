@@ -63,7 +63,7 @@ internal static class DebugHelper
                                                     User Name: {Environment.UserName}\r\n{e.Message}\r\n{e.StackTrace}\r\n-----------------------------\r\n
                  """;
 
-            Trace.WriteLine(message);
+            Trace.TraceError(message);
         }
     }
 
@@ -75,6 +75,6 @@ internal static class DebugHelper
     /// </param>
     private static void LogMessage(string message)
     {
-        Trace.WriteLine($"{DateTime.Now:G}: {message}");
+        Trace.TraceError($"{DateTime.Now:G}: {message}");
     }
 }

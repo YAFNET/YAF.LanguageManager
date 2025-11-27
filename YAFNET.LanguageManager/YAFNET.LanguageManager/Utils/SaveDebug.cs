@@ -36,17 +36,17 @@ public class SaveDebug : IDisposable
     /// <summary>
     /// The log file name.
     /// </summary>
-    private readonly string _logFileName;
+    private readonly string logFileName;
 
     /// <summary>
     /// The log stream.
     /// </summary>
-    private readonly StringWriter _logStream;
+    private readonly StringWriter logStream;
 
     /// <summary>
     /// The debug listener.
     /// </summary>
-    private readonly TextWriterTraceListener _debugListener;
+    private readonly TextWriterTraceListener debugListener;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SaveDebug"/> class.
@@ -59,13 +59,13 @@ public class SaveDebug : IDisposable
     /// </param>
     public SaveDebug(string path, string logName)
     {
-        this._logFileName = $"{path}\\{logName}";
+        this.logFileName = $"{path}\\{logName}";
 
         try
         {
-            this._logStream = new StringWriter();
-            this._debugListener = new TextWriterTraceListener(this._logStream);
-            Trace.Listeners.Add(this._debugListener);
+            this.logStream = new StringWriter();
+            this.debugListener = new TextWriterTraceListener(this.logStream);
+            Trace.Listeners.Add(this.debugListener);
         }
         catch
         {
@@ -91,18 +91,18 @@ public class SaveDebug : IDisposable
         try
         {
             Trace.Flush();
-            if (this._logStream.ToString().Length > 0)
+            if (this.logStream.ToString().Length > 0)
             {
-                var streamWriter = !File.Exists(this._logFileName)
-                    ? File.CreateText(this._logFileName)
-                    : File.AppendText(this._logFileName);
-                streamWriter.Write(this._logStream.ToString());
+                var streamWriter = !File.Exists(this.logFileName)
+                    ? File.CreateText(this.logFileName)
+                    : File.AppendText(this.logFileName);
+                streamWriter.Write(this.logStream.ToString());
                 streamWriter.Flush();
                 streamWriter.Close();
             }
 
-            this._logStream.Close();
-            Trace.Listeners.Remove(this._debugListener);
+            this.logStream.Close();
+            Trace.Listeners.Remove(this.debugListener);
         }
         catch (Exception)
         {
