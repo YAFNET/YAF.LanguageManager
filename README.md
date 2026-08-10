@@ -1,6 +1,6 @@
 # YAFNET.LanguageManager
 
-![build status](https://github.com/yafnet/YAFNET.LanguageManager/actions/workflows/build.yml/badge.svg)
+![build status](https://github.com/yafnet/yaf.languagemanager/actions/workflows/build.yml/badge.svg)
 [![NuGet](https://img.shields.io/nuget/v/YAFNET.LanguageManager.svg)](https://nuget.org/packages/YAFNET.LanguageManager)
 
 A .NET global tool for synchronizing, minifying, and automatically translating [YetAnotherForum.NET](https://www.yetanotherforum.net/) JSON language files.
