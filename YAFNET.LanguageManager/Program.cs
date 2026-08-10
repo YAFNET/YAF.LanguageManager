@@ -84,9 +84,7 @@ internal static class Program
                     return;
                 }
 
-                var currentFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location);
-
-                var languageFolder = Path.GetFullPath(Path.Combine(currentFolder!, commandLineParameters.TextLines[0]));
+                var languageFolder = Path.GetFullPath(commandLineParameters.TextLines[0], Directory.GetCurrentDirectory());
 
                 var languages = Directory.GetFiles(languageFolder, "*.json").ToList();
 

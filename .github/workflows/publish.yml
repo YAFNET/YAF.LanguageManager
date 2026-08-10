@@ -1,0 +1,94 @@
+name: publish
+
+on:
+  workflow_run:
+    workflows: ["build dotnet"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Read version from csproj
+        id: version
+        shell: pwsh
+        run: |
+          $xml = [xml](Get-Content "YAFNET.LanguageManager/YAFNET.LanguageManager.csproj")
+          $version = $xml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Check if release tag already exists
+        id: tagcheck
+        shell: pwsh
+        run: |
+          $tag = "v$($env:VERSION)"
+          $existing = git ls-remote --tags origin $tag
+          if ($existing) {
+            "exists=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "exists=false" >> $env:GITHUB_OUTPUT
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Setup .NET SDK
+        if: steps.tagcheck.outputs.exists == 'false'
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        if: steps.tagcheck.outputs.exists == 'false'
+        shell: pwsh
+        run: dotnet pack YAFNET.LanguageManager/YAFNET.LanguageManager.csproj -c Release -o ./nupkg
+
+      - name: Create and push tag
+        if: steps.tagcheck.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          git tag ${{ steps.tagcheck.outputs.tag }}
+          git push origin ${{ steps.tagcheck.outputs.tag }}
+
+      - name: Create GitHub release
+        if: steps.tagcheck.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          gh release create "${{ steps.tagcheck.outputs.tag }}" (Get-Item ./nupkg/*.nupkg).FullName `
+            --title "${{ steps.tagcheck.outputs.tag }}" `
+            --generate-notes
+
+      # Exchanges this job's GitHub OIDC token for a short-lived NuGet.org API key.
+      # Requires a Trusted Publishing policy configured on nuget.org for this repo + workflow file.
+      - name: NuGet login (Trusted Publishing)
+        if: steps.tagcheck.outputs.exists == 'false'
+        uses: NuGet/login@v1
+        id: nuget_login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        if: steps.tagcheck.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          Get-ChildItem ./nupkg -Filter *.nupkg | ForEach-Object {
+            dotnet nuget push $_.FullName `
+              --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" `
+              --source https://api.nuget.org/v3/index.json `
+              --skip-duplicate
+          }

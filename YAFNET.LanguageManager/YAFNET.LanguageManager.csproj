@@ -9,12 +9,30 @@
     <Copyright>Copyright © YetAnotherForum.NET</Copyright>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>yaf-langmgr</ToolCommandName>
+    <PackageId>YAFNET.LanguageManager</PackageId>
+    <Authors>YetAnotherForum.NET</Authors>
+    <Company>YetAnotherForum.NET</Company>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/YAFNET/YAF.LanguageManager</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/YAFNET/YAF.LanguageManager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>yaf;yetanotherforum;language;localization;cli-tool;dotnet-tool</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
