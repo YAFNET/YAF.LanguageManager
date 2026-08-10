@@ -41,8 +41,6 @@ public class CommandLineParameters : IDisposable
     /// <param name="usCaseSensitive">if set to <c>true</c> [us case-sensitive].</param>
     public CommandLineParameters(IEnumerable<string> args, bool usCaseSensitive)
     {
-        string index1 = null;
-
         foreach (var str in args.Select(t => t.Trim()))
         {
             if (str.StartsWith('/') || str.StartsWith('-'))
@@ -51,7 +49,7 @@ public class CommandLineParameters : IDisposable
 
                 if (!usCaseSensitive)
                 {
-                    key = key.ToLower();
+                    key = key.ToLowerInvariant();
                 }
 
                 if (key.Contains(':'))
@@ -59,27 +57,16 @@ public class CommandLineParameters : IDisposable
                     var value = key[(key.IndexOf(':', StringComparison.Ordinal) +1)..];
                     key = key[..key.IndexOf(':', StringComparison.Ordinal)];
 
-                    this.Switches.Add(key, value);
+                    this.Switches[key] = value;
                 }
                 else
                 {
-                    this.Switches.Add(key, null);
+                    this.Switches[key] = null;
                 }
-
-                index1 = key;
             }
             else
             {
-                if (index1 != null)
-                {
-                    this.Switches[index1] = str;
-                }
-                else
-                {
-                    this.TextLines.Add(str);
-                }
-
-                index1 = null;
+                this.TextLines.Add(str);
             }
         }
     }

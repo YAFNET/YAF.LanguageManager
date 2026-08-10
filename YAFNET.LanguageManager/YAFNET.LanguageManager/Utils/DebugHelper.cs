@@ -52,16 +52,13 @@ internal static class DebugHelper
     /// </param>
     public static void DebugExceptionMessage(Exception e)
     {
-        var message = string.Empty;
-
         for (; e != null; e = e.InnerException)
         {
-            message =
-                $"""
-                 {message}{DateTime.Now:g} in {e.Source}\r\n
-                                                    Machine: {Environment.MachineName}
-                                                    User Name: {Environment.UserName}\r\n{e.Message}\r\n{e.StackTrace}\r\n-----------------------------\r\n
-                 """;
+            var message =
+                $"{DateTime.Now:g} in {e.Source}\r\n" +
+                $"Machine: {Environment.MachineName}\r\n" +
+                $"User Name: {Environment.UserName}\r\n" +
+                $"{e.Message}\r\n{e.StackTrace}\r\n-----------------------------\r\n";
 
             Trace.TraceError(message);
         }

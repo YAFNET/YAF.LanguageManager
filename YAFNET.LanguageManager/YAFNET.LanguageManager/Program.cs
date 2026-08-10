@@ -24,7 +24,6 @@
 
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Web;
 
 namespace YAFNET.LanguageManager;
 
@@ -44,6 +43,11 @@ using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 internal static class Program
 {
+    /// <summary>
+    /// Shared HTTP client for translation requests, reused across all calls to avoid socket exhaustion.
+    /// </summary>
+    private static readonly HttpClient TranslationHttpClient = CreateTranslationHttpClient();
+
     private static async Task Main(string[] args)
     {
         using var debug = new SaveDebug(
@@ -111,6 +115,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"ERROR: {ex.Message}");
             DebugHelper.DebugExceptionMessage(ex);
         }
     }
@@ -127,7 +132,20 @@ internal static class Program
 
         var sourceResources = LoadFile(Path.Combine(languageFolder, "english.json"));
 
-        var serializer = new JsonSerializer { Formatting = Formatting.Indented };
+        // Resolves the text to use for a new resource: template content is copied verbatim
+        // (it may contain HTML/placeholders that machine translation would corrupt), everything
+        // else is auto-translated, falling back to the source text if translation fails.
+        async Task<string> ResolveTextAsync(string pageName, string sourceText, string targetLanguageCode)
+        {
+            if (pageName.Equals("TEMPLATES"))
+            {
+                return sourceText;
+            }
+
+            var result = await TranslateWithGoogleAsync(sourceText, targetLanguageCode);
+
+            return !string.IsNullOrEmpty(result) ? result : sourceText;
+        }
 
         // Add Missing Resources
         foreach (var file in languages)
@@ -138,33 +156,30 @@ internal static class Program
 
             foreach (var sourcePage in sourceResources.Resources.Page)
             {
-                foreach (var sourceResource in sourcePage.Resource)
+                var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
+
+                // Add Missing pages in languages
+                if (translatePage == null)
                 {
-                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
+                    updateFile = true;
+                    DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to the language file '{file}'.");
 
-                    // Add Missing pages in languages
-                    if (translatePage == null)
+                    var translatedPage = new Page() { Name = sourcePage.Name, Resource = [] };
+
+                    // translate page
+                    foreach (var resource in sourcePage.Resource)
                     {
-                        updateFile = true;
-                        DebugHelper.DisplayAndLogMessage($"Adding Missing Resource Page '{sourcePage.Name}' to the language file '{file}'.");
+                        var text = await ResolveTextAsync(sourcePage.Name, resource.Text, resourcesFile.Resources.Code);
 
-                        var translatedPage = new Page() { Name = sourcePage.Name, Resource = [] };
-
-                        // translate page
-                        foreach (var resource in sourcePage.Resource)
-                        {
-                            // Auto translate
-                            var result = await TranslateWithGoogleAsync(resource.Text, resourcesFile.Resources.Code);
-
-                            var text = !string.IsNullOrEmpty(result) ? result : resource.Text;
-
-                            translatedPage.Resource.Add(new Resource
-                                { Tag = resource.Tag, Text = text });
-                        }
-
-                        resourcesFile.Resources.Page.Add(translatedPage);
+                        translatedPage.Resource.Add(new Resource
+                            { Tag = resource.Tag, Text = text });
                     }
-                    else
+
+                    resourcesFile.Resources.Page.Add(translatedPage);
+                }
+                else
+                {
+                    foreach (var sourceResource in sourcePage.Resource)
                     {
                         var translateResource = translatePage.Resource.Find(r => r.Tag == sourceResource.Tag);
 
@@ -177,12 +192,9 @@ internal static class Program
 
                         DebugHelper.DisplayAndLogMessage($"Adding Missing Resource '{sourceResource.Tag}' ('{sourcePage.Name}') to the language file '{file}'.");
 
-                        // Auto translate
-                        var result = await TranslateWithGoogleAsync(sourceResource.Text, resourcesFile.Resources.Code);
+                        var text = await ResolveTextAsync(sourcePage.Name, sourceResource.Text, resourcesFile.Resources.Code);
 
-                        var text = !string.IsNullOrEmpty(result) ? result : sourceResource.Text;
-
-                        resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name)!.Resource.Add(new Resource
+                        translatePage.Resource.Add(new Resource
                             { Tag = sourceResource.Tag, Text = text });
                     }
                 }
@@ -195,10 +207,7 @@ internal static class Program
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
 
-            await using var sw = new StreamWriter(file);
-            await using var writer = new JsonTextWriter(sw);
-
-            serializer.Serialize(writer, resourcesFile);
+            await WriteResourcesFileAsync(file, resourcesFile, Formatting.Indented);
         }
 
         // Remove legacy Resources
@@ -253,10 +262,7 @@ internal static class Program
 
             ShowDivider(0);
 
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-
-             serializer.Serialize(writer, deleteResourceFile);
+            await WriteResourcesFileAsync(file, deleteResourceFile, Formatting.Indented);
         }
 
         DebugHelper.DisplayAndLogMessage("All Languages Synced!");
@@ -274,14 +280,7 @@ internal static class Program
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
 
-            var serializer = new JsonSerializer
-            {
-                Formatting = Formatting.None
-            };
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, resourcesFile);
+            await WriteResourcesFileAsync(file, resourcesFile, Formatting.None);
         }
 
         Console.WriteLine("Done!");
@@ -299,14 +298,7 @@ internal static class Program
 
             DebugHelper.DisplayAndLogMessage($"Writing Output File '{file}'...");
 
-            var serializer = new JsonSerializer
-                                 {
-                                     Formatting = Formatting.Indented
-                                 };
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, resourcesFile);
+            await WriteResourcesFileAsync(file, resourcesFile, Formatting.Indented);
         }
 
         Console.WriteLine("Done!");
@@ -325,14 +317,37 @@ internal static class Program
         var languageResource = serializer.Deserialize<ResourcesFile>(reader);
 
         // transform the page and tag name ToUpper...
-        languageResource.Resources.Page.ForEach(p => p.Name = p.Name.ToUpper());
-        languageResource.Resources.Page.ForEach(p => p.Resource.ForEach(i => i.Tag = i.Tag.ToUpper()));
+        languageResource.Resources.Page.ForEach(p => p.Name = p.Name.ToUpperInvariant());
+        languageResource.Resources.Page.ForEach(p => p.Resource.ForEach(i => i.Tag = i.Tag.ToUpperInvariant()));
 
         languageResource.Resources.Page = [.. languageResource.Resources.Page.OrderBy(p => p.Name)];
 
         languageResource.Resources.Page.ForEach(p => p.Resource = [.. p.Resource.OrderBy(r => r.Tag)]);
 
         return languageResource;
+    }
+
+    /// <summary>
+    /// Serializes and writes the resources file atomically: the new content is written to a temp
+    /// file first and only swapped in on success, so a failure mid-write can't leave a truncated
+    /// or corrupted language file on disk.
+    /// </summary>
+    /// <param name="filePath">The destination file path.</param>
+    /// <param name="resourcesFile">The resources file to write.</param>
+    /// <param name="formatting">The JSON formatting to use.</param>
+    private static async Task WriteResourcesFileAsync(string filePath, ResourcesFile resourcesFile, Formatting formatting)
+    {
+        var tempFilePath = $"{filePath}.tmp";
+
+        var serializer = new JsonSerializer { Formatting = formatting };
+
+        await using (var sw = new StreamWriter(tempFilePath))
+        await using (JsonWriter writer = new JsonTextWriter(sw))
+        {
+            serializer.Serialize(writer, resourcesFile);
+        }
+
+        File.Move(tempFilePath, filePath, true);
     }
 
     /// <summary>
@@ -386,11 +401,23 @@ internal static class Program
                     continue;
                 }
 
+                var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
+
+                // Skip pages the target file hasn't been synced with yet; run -sync first.
+                if (translatePage == null)
+                {
+                    continue;
+                }
+
                 foreach (var sourceResource in sourcePage.Resource)
                 {
-                    var translatePage = resourcesFile.Resources.Page.Find(p => p.Name == sourcePage.Name);
-
                     var translateResource = translatePage.Resource.Find(r => r.Tag == sourceResource.Tag);
+
+                    // Skip resources the target file hasn't been synced with yet; run -sync first.
+                    if (translateResource == null)
+                    {
+                        continue;
+                    }
 
                     if (!string.Equals(
                             sourceResource.Text,
@@ -416,7 +443,7 @@ internal static class Program
 
                     if (!string.IsNullOrEmpty(result))
                     {
-                        translatePage.Resource.Find(r => r.Tag == sourceResource.Tag).Text = result;
+                        translateResource.Text = result;
                     }
                 }
             }
@@ -430,11 +457,7 @@ internal static class Program
 
             ShowDivider(0);
 
-            var serializer = new JsonSerializer { Formatting = Formatting.Indented };
-
-            await using var sw = new StreamWriter(file);
-            await using JsonWriter writer = new JsonTextWriter(sw);
-            serializer.Serialize(writer, resourcesFile);
+            await WriteResourcesFileAsync(file, resourcesFile, Formatting.Indented);
         }
     }
 
@@ -450,14 +473,10 @@ internal static class Program
 
         try
         {
-            var client = new HttpClient(new HttpClientHandler());
-
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
-
             var url =
-                $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetLanguageCode}&dt=t&q={HttpUtility.HtmlEncode(inputToTranslate)}";
+                $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={Uri.EscapeDataString(targetLanguageCode)}&dt=t&q={Uri.EscapeDataString(inputToTranslate)}";
 
-            var json = await client.GetFromJsonAsync<dynamic[]>(url);
+            var json = await TranslationHttpClient.GetFromJsonAsync<dynamic[]>(url);
 
             result = Convert.ToString(json[0][0][0]);
         }
@@ -467,5 +486,17 @@ internal static class Program
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Creates the shared, reusable <see cref="HttpClient"/> used for translation requests.
+    /// </summary>
+    private static HttpClient CreateTranslationHttpClient()
+    {
+        var client = new HttpClient(new HttpClientHandler());
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("YAF.NET");
+
+        return client;
     }
 }
