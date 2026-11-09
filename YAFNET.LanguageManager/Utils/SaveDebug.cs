@@ -60,17 +60,9 @@ public class SaveDebug : IDisposable
     public SaveDebug(string path, string logName)
     {
         this.logFileName = $"{path}\\{logName}";
-
-        try
-        {
-            this.logStream = new StringWriter();
-            this.debugListener = new TextWriterTraceListener(this.logStream);
-            Trace.Listeners.Add(this.debugListener);
-        }
-        catch
-        {
-            // Ignore
-        }
+        this.logStream = new StringWriter();
+        this.debugListener = new TextWriterTraceListener(this.logStream);
+        Trace.Listeners.Add(this.debugListener);
     }
 
     /// <summary>

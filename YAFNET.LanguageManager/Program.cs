@@ -44,11 +44,12 @@ using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 internal static class Program
 {
     /// <summary>
-    /// Shared HTTP client for translation requests, reused across all calls to avoid socket exhaustion.
+    /// Gets or sets the shared HTTP client for translation requests, reused across all calls to avoid socket exhaustion.
+    /// Settable so tests can substitute a client with a fake message handler.
     /// </summary>
-    private static readonly HttpClient TranslationHttpClient = CreateTranslationHttpClient();
+    internal static HttpClient TranslationHttpClient { get; set; } = CreateTranslationHttpClient();
 
-    private static async Task Main(string[] args)
+    internal static async Task Main(string[] args)
     {
         using var debug = new SaveDebug(
                    Path.GetDirectoryName(typeof(Program).Module.FullyQualifiedName),
@@ -123,7 +124,7 @@ internal static class Program
     /// </summary>
     /// <param name="languageFolder">The language folder.</param>
     /// <param name="languages">The languages.</param>
-    private static async Task SyncLanguagesAsync(string languageFolder, List<string> languages)
+    internal static async Task SyncLanguagesAsync(string languageFolder, List<string> languages)
     {
         DebugHelper.DisplayAndLogMessage(
                    $"Reading Languages Folder {languageFolder} ...");
@@ -270,7 +271,7 @@ internal static class Program
     /// Minify all languages.
     /// </summary>
     /// <param name="languages">The languages.</param>
-    private static async Task MinifyLanguagesAsync(IEnumerable<string> languages)
+    internal static async Task MinifyLanguagesAsync(IEnumerable<string> languages)
     {
         foreach (var file in languages)
         {
@@ -288,7 +289,7 @@ internal static class Program
     /// Un-Minify all languages.
     /// </summary>
     /// <param name="languages">The languages.</param>
-    private static async Task UglifyLanguagesAsync(IEnumerable<string> languages)
+    internal static async Task UglifyLanguagesAsync(IEnumerable<string> languages)
     {
         foreach (var file in languages)
         {
@@ -307,7 +308,7 @@ internal static class Program
     /// </summary>
     /// <param name="filePath">The file path.</param>
     /// <returns>ResourcesFile.</returns>
-    private static ResourcesFile LoadFile(string filePath)
+    internal static ResourcesFile LoadFile(string filePath)
     {
         using var file = File.OpenText(filePath);
         using var reader = new JsonTextReader(file);
@@ -333,7 +334,7 @@ internal static class Program
     /// <param name="filePath">The destination file path.</param>
     /// <param name="resourcesFile">The resources file to write.</param>
     /// <param name="formatting">The JSON formatting to use.</param>
-    private static async Task WriteResourcesFileAsync(string filePath, ResourcesFile resourcesFile, Formatting formatting)
+    internal static async Task WriteResourcesFileAsync(string filePath, ResourcesFile resourcesFile, Formatting formatting)
     {
         var tempFilePath = $"{filePath}.tmp";
 
@@ -354,7 +355,7 @@ internal static class Program
     /// <param name="showReturn">
     /// The show return.
     /// </param>
-    private static void ShowDivider(int showReturn)
+    internal static void ShowDivider(int showReturn)
     {
         if ((showReturn & 1) == 1)
         {
@@ -377,7 +378,7 @@ internal static class Program
     /// <param name="languages">The Language Files</param>
     /// <param name="sourceResources">The source resources.</param>
     /// <returns>A Task representing the asynchronous operation.</returns>
-    private static async Task AutoTranslateWithGoogleFreeAsync(
+    internal static async Task AutoTranslateWithGoogleFreeAsync(
         List<string> languages,
         ResourcesFile sourceResources)
     {
@@ -465,7 +466,7 @@ internal static class Program
     /// <param name="inputToTranslate">The input to translate.</param>
     /// <param name="targetLanguageCode">The target language code.</param>
     /// <returns>System.Threading.Tasks.Task&lt;System.String&gt;.</returns>
-    private static async Task<string> TranslateWithGoogleAsync(string inputToTranslate, string targetLanguageCode)
+    internal static async Task<string> TranslateWithGoogleAsync(string inputToTranslate, string targetLanguageCode)
     {
         string result;
 
@@ -489,7 +490,7 @@ internal static class Program
     /// <summary>
     /// Creates the shared, reusable <see cref="HttpClient"/> used for translation requests.
     /// </summary>
-    private static HttpClient CreateTranslationHttpClient()
+    internal static HttpClient CreateTranslationHttpClient()
     {
         var client = new HttpClient(new HttpClientHandler());
 
