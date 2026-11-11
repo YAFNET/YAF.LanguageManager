@@ -9,7 +9,7 @@ It keeps every `*.json` language file in a folder in sync with `english.json` â€
 
 ## Prerequisites
 
-* .NET 10 SDK or later (runtime is enough to run the tool once installed)
+* .NET 11 SDK or later (runtime is enough to run the tool once installed)
 
 ## Installation
 
