@@ -134,7 +134,7 @@ internal static class Program
         // Resolves the text to use for a new resource: template content is copied verbatim
         // (it may contain HTML/placeholders that machine translation would corrupt), everything
         // else is auto-translated, falling back to the source text if translation fails.
-        async Task<string> ResolveTextAsync(string pageName, string sourceText, string targetLanguageCode)
+        static async Task<string> ResolveTextAsync(string pageName, string sourceText, string targetLanguageCode)
         {
             if (pageName.Equals("TEMPLATES"))
             {
